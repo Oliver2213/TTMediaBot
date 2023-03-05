@@ -113,6 +113,7 @@ class Bot:
         self.periodic_player.close()
         self.ttclient.close()
         self.tt_player_connector.close()
+        self.periodic_tt_player_connector.close()
         self.config_manager.close()
         self.cache_manager.close()
         self._close = True
