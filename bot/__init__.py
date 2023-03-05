@@ -68,6 +68,7 @@ class Bot:
         self.periodic_player = player.Player(self)
         self.ttclient = TeamTalk.TeamTalk(self)
         self.tt_player_connector = connectors.TTPlayerConnector(self)
+        self.periodic_tt_player_connector = connectors.MinimalTTPlayerConnector(self)
         self.sound_device_manager = sound_devices.SoundDeviceManager(self)
         self.service_manager = services.ServiceManager(self)
         self.module_manager = modules.ModuleManager(self)
@@ -89,6 +90,7 @@ class Bot:
         self.player.run()
         self.periodic_player.run()
         self.tt_player_connector.start()
+        self.periodic_tt_player_connector.start()
         self.command_processor.run()
         logging.info("Started")
         self._close = False

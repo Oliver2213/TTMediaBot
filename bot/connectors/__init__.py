@@ -1,1 +1,1 @@
-from .tt_player_connector import TTPlayerConnector
+from .tt_player_connector import TTPlayerConnector, MinimalTTPlayerConnector

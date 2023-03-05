@@ -101,6 +101,8 @@ One other consideration is that this connector checks to see if the regular play
                         self.ttclient.enable_voice_transmission()
                     elif self.periodic_player.state != State.Playing and self.player.state != State.Playing:
                         self.ttclient.disable_voice_transmission()
+            except Exception:
+                logging.error("", exc_info=True)
             time.sleep(app_vars.loop_timeout)
 
     def close(self):
