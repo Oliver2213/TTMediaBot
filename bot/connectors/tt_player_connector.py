@@ -97,13 +97,10 @@ One other consideration is that this connector checks to see if the regular play
             try:
                 if self.periodic_player.state != last_player_state:
                     last_player_state = self.periodic_player.state
-                    if self.periodic_player.state == State.Playing and self.player.state != State.Playing: # if period is now playing, but the regular one isn't
+                    if self.periodic_player.state == State.Playing and self.player.state != State.Playing: 
                         self.ttclient.enable_voice_transmission()
-                    elif self.periodic_player.state == State.Stopped and (self.player.state == State.Stopped or self.player.state == State.Paused):
+                    elif self.periodic_player.state != State.Playing and self.player.state != State.Playing:
                         self.ttclient.disable_voice_transmission()
-                    elif self.periodic_player.state == State.Paused and (self.player.state == State.Stopped or self.player.state == State.Paused):
-                        self.ttclient.disable_voice_transmission()
-            # comment
             time.sleep(app_vars.loop_timeout)
 
     def close(self):
