@@ -76,3 +76,36 @@ class TTPlayerConnector(Thread):
 
     def close(self):
         self._close = True
+
+
+class MinimalTTPlayerConnector(Thread):
+    """TT player connector, controls setting status and toggling audio transmission. This minimal varient doesn't change status text (as its for periodic / other announcements.
+One other consideration is that this connector checks to see if the regular player is playing before stopping transmission when it's starting or stopping playback, and it doesn't keep track of (ha) track metadata.
+    """
+    def __init__(self, bot: Bot):
+        super().__init__(daemon=True)
+        self.name = "MinimalTTPlayerConnector"
+        self.player = bot.player
+        self.periodic_player = bot.periodic_player
+        self.ttclient = bot.ttclient
+        self.translator = bot.translator
+
+    def run(self):
+        last_player_state = State.Stopped
+        self._close = False
+        while not self._close:
+            try:
+                if self.periodic_player.state != last_player_state:
+                    last_player_state = self.periodic_player.state
+                    if self.periodic_player.state == State.Playing and self.player.state != State.Playing: # if period is now playing, but the regular one isn't
+                        self.ttclient.enable_voice_transmission()
+                    elif self.periodic_player.state == State.Stopped and (self.player.state == State.Stopped or self.player.state == State.Paused):
+                        self.ttclient.disable_voice_transmission()
+                    elif self.periodic_player.state == State.Paused and (self.player.state == State.Stopped or self.player.state == State.Paused):
+                        self.ttclient.disable_voice_transmission()
+            # comment
+            time.sleep(app_vars.loop_timeout)
+
+    def close(self):
+        self._close = True
+

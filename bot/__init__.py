@@ -65,6 +65,7 @@ class Bot:
         self.cache = self.cache_manager.cache
         self.log_file_name = log_file_name
         self.player = player.Player(self)
+        self.periodic_player = player.Player(self)
         self.ttclient = TeamTalk.TeamTalk(self)
         self.tt_player_connector = connectors.TTPlayerConnector(self)
         self.sound_device_manager = sound_devices.SoundDeviceManager(self)
@@ -79,12 +80,14 @@ class Bot:
         self.sound_device_manager.initialize()
         self.ttclient.initialize()
         self.player.initialize()
+        self.periodic_player.initialize()
         self.service_manager.initialize()
         logging.debug("Initialized")
 
     def run(self):
         logging.debug("Starting")
         self.player.run()
+        self.periodic_player.run()
         self.tt_player_connector.start()
         self.command_processor.run()
         logging.info("Started")
@@ -105,6 +108,7 @@ class Bot:
     def close(self) -> None:
         logging.debug("Closing bot")
         self.player.close()
+        self.periodic_player.close()
         self.ttclient.close()
         self.tt_player_connector.close()
         self.config_manager.close()
