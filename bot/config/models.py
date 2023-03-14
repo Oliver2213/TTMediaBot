@@ -102,7 +102,7 @@ class CronEntryModel(BaseModel):
     # CronTab parsed instance
     entry: Optional [CronTab] = None
     
-    @validator('pattern')'
+    @validator('pattern')
     def cron_pattern_must_be_valid(cls, pattern, values):
         if pattern != "":
             self.entry = CronTab(self.pattern)
