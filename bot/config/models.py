@@ -99,7 +99,7 @@ class CronEntryModel(BaseModel):
     command: str = ""
 
     def valid_pattern(self) -> bool:
-        if self.pattern:
+        if self.pattern != "":
             try:
                 self.entry = CronTab(self.pattern)
                 return True
