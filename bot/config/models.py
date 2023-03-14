@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Union
 
 from pydantic import BaseModel
+from crontab import CronTab
 
 
 class GeneralModel(BaseModel):
@@ -93,12 +94,32 @@ class ShorteningModel(BaseModel):
     service_params: Dict[str, Any] = {}
 
 
-class ConfigModel(BaseModel):
+class CronEntryModel(BaseModel):
+    pattern: str = ""
+    command: str = ""
+
+    def valid_pattern(self) -> bool:
+        if self.pattern:
+            try:
+                self.entry = CronTab(self.pattern)
+                return True
+            except ValueError:
+                return False
+        return False
+
+
+class SchedulesModel(BaseModel):
+    enabled: bool = True
+    patterns: List[CronEntryModel] = []
+
+
+class ConfigModel:
     config_version: int = 0
     general: GeneralModel = GeneralModel()
     sound_devices: SoundDevicesModel = SoundDevicesModel()
     player: PlayerModel = PlayerModel()
     teamtalk: TeamTalkModel = TeamTalkModel()
     services: ServicesModel = ServicesModel()
+    schedule: SchedulesModel = SchedulesModel()
     logger: LoggerModel = LoggerModel()
     shortening: ShorteningModel = ShorteningModel()
