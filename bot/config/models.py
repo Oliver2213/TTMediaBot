@@ -100,14 +100,13 @@ class CronEntryModel(BaseModel):
     # What to run when this cron entry matches
     command: str = ""
     # CronTab parsed instance
-    entry: Union[str, CronTab] = None
+    entry: Optional [CronTab] = None
     
-    @validator('entry')
+    @validator('pattern')'
     def cron_pattern_must_be_valid(cls, pattern, values):
         if pattern != "":
-            return CronTab(self.pattern)
-        else:
-            return None
+            self.entry = CronTab(self.pattern)
+        return pattern
 
 
 class SchedulesModel(BaseModel):
