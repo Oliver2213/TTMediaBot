@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Union, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from crontab import CronTab
 
 
@@ -97,19 +97,17 @@ class ShorteningModel(BaseModel):
 class CronEntryModel(BaseModel):
     # Text cron pattern
     pattern: str = ""
-    # CronTab parsed instance
-    entry: Optional[CronTab] = None
     # What to run when this cron entry matches
     command: str = ""
-
-    def valid_pattern(self) -> bool:
-        if self.pattern != "":
-            try:
-                self.entry = CronTab(self.pattern)
-                return True
-            except ValueError:
-                return False
-        return False
+    # CronTab parsed instance
+    entry: Union[str, CronTab] = None
+    
+    @validator('entry')
+    def cron_pattern_must_be_valid(cls, pattern, values):
+        if pattern != "":
+            return CronTab(self.pattern)
+        else:
+            return None
 
 
 class SchedulesModel(BaseModel):
