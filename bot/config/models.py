@@ -95,7 +95,11 @@ class ShorteningModel(BaseModel):
 
 
 class CronEntryModel(BaseModel):
+    # Text cron pattern
     pattern: str = ""
+    # CronTab parsed instance
+    entry: optional[CronTab] = None
+    # What to run when this cron entry matches
     command: str = ""
 
     def valid_pattern(self) -> bool:
