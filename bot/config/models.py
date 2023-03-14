@@ -113,7 +113,7 @@ class SchedulesModel(BaseModel):
     patterns: List[CronEntryModel] = []
 
 
-class ConfigModel:
+class ConfigModel(BaseModel):
     config_version: int = 0
     general: GeneralModel = GeneralModel()
     sound_devices: SoundDevicesModel = SoundDevicesModel()
