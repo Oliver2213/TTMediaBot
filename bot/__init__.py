@@ -3,7 +3,8 @@ import logging
 import queue
 import sys
 import time
-from typing import Optional
+from typing import Optional, List
+from crontab import CronTab
 
 from pydantic.error_wrappers import ValidationError
 
@@ -73,6 +74,7 @@ class Bot:
         self.service_manager = services.ServiceManager(self)
         self.module_manager = modules.ModuleManager(self)
         self.command_processor = commands.CommandProcessor(self)
+        self.cron_patterns: List[CronTab] = []
 
     def initialize(self):
         if self.config.logger.log:
@@ -83,6 +85,12 @@ class Bot:
         self.player.initialize()
         self.periodic_player.initialize()
         self.service_manager.initialize()
+        if self.config.schedule.enabled:
+            # parse all cron patterns into CronTab instances and store
+            for entry in self.config.schedule.patterns:
+                logging.debug(f"Parsing cron pattern '{entry.pattern}' and appending to list")
+                c = CronTab(entry.pattern)
+                self.cron_patterns.append(c)
         logging.debug("Initialized")
 
     def run(self):

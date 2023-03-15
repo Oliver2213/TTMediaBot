@@ -94,18 +94,17 @@ class ShorteningModel(BaseModel):
     service_params: Dict[str, Any] = {}
 
 
-class CronEntryModel(BaseModel):
-    # Text cron pattern
+class CronEntryModel(BaseModel, arbitrary_types_allowed=True):
+    # Text cron pattern; will be parsed with the crontab library and a configuration error raised if a pattern fails to parse
     pattern: str = ""
     # What to run when this cron entry matches
     command: str = ""
-    # CronTab parsed instance
-    entry: Optional [CronTab] = None
-    
+
     @validator('pattern')
-    def cron_pattern_must_be_valid(cls, pattern, values):
+    def cron_pattern_must_be_valid(cls, pattern):
         if pattern != "":
-            self.entry = CronTab(self.pattern)
+            # Add a try here later, with a message about which cron entry is invalid (pattern and command in output if I don't add name)
+            _entry = CronTab(pattern)
         return pattern
 
 
