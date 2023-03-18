@@ -1,6 +1,7 @@
 import os
 from operator import methodcaller
-from typing import List
+from typing import List, Tuple
+from crontab import CronTab
 
 from bot import app_vars
 from bot.config.models import CronEntryModel
@@ -19,11 +20,8 @@ def get_abs_path(file_name: str) -> str:
     return os.path.join(app_vars.directory, file_name)
 
 
-def sorted_cron_tasks(tasks: List[CronEntryModel]) -> List[CronEntryModel]:
+def sort_cron_tasks(tasks: Tuple[CronTab, CronEntryModel]) -> List[CronEntryModel]:
     """Given a list of CronTask instances, return the same list, sorted by ascending next run time."""
-    clean_tasks: List[CronEntryModel] = []
-    for t in tasks:
-        if t.valid_pattern():
-            clean_tasks.append(t)
-    sorted_tasks = sorted(clean_tasks, key=methodcaller("next"))
+    # sort by item[0].next(), a function on CronTab instance
+    sorted_tasks = sorted(tasks, key=lambda t: t[0].next())
     return sorted_tasks

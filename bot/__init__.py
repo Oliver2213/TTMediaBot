@@ -3,7 +3,7 @@ import logging
 import queue
 import sys
 import time
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from crontab import CronTab
 
 from pydantic.error_wrappers import ValidationError
@@ -22,6 +22,7 @@ from bot import (
     translator,
     app_vars,
 )
+from bot.utils import sort_cron_tasks
 
 
 class Bot:
@@ -74,7 +75,7 @@ class Bot:
         self.service_manager = services.ServiceManager(self)
         self.module_manager = modules.ModuleManager(self)
         self.command_processor = commands.CommandProcessor(self)
-        self.cron_patterns: List[CronTab] = []
+        self.cron_patterns: Tuple[CronTab, config.models.CronEntryModel] = []
 
     def initialize(self):
         if self.config.logger.log:
@@ -89,12 +90,15 @@ class Bot:
             # parse all cron patterns into CronTab instances and store
             for entry in self.config.schedule.patterns:
                 logging.debug(f"Parsing cron pattern '{entry.pattern}' and appending to list")
-                c = CronTab(entry.pattern)
-                self.cron_patterns.append(c)
+                e = CronTab(entry.pattern)
+                self.cron_patterns.append((e, entry))
         logging.debug("Initialized")
+        
 
     def run(self):
         logging.debug("Starting")
+        counter = 0
+        counter_total = int(1 / app_vars.loop_timeout)
         self.player.run()
         self.periodic_player.run()
         self.tt_player_connector.start()
@@ -103,6 +107,12 @@ class Bot:
         logging.info("Started")
         self._close = False
         while not self._close:
+            if self.config.schedule.enabled and counter == counter_total:
+                tasks = sort_cron_tasks(self.cron_patterns)
+                for ct, entry in tasks:
+                    if ct.next() <= 1:
+                        # run the associated command here
+                        pass
             try:
                 message = self.ttclient.message_queue.get_nowait()
                 logging.info(
@@ -113,6 +123,9 @@ class Bot:
                 self.command_processor(message)
             except queue.Empty:
                 pass
+            if counter > counter_total:
+                counter = 0
+            counter += 1
             time.sleep(app_vars.loop_timeout)
 
     def close(self) -> None:
