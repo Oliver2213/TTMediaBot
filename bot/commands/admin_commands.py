@@ -383,3 +383,17 @@ class GetChannelIDCommand(Command):
 
     def __call__(self, arg: str, user: User) -> Optional[str]:
         return str(self.ttclient.channel.id)
+
+class SchedulerCommand(Command):
+    @property
+    def help(self) -> str:
+        return self.translator.translate("Enables or disabled the cron scheduler.")
+
+    def __call__(self, arg: str, user: User) -> Optional[str]:
+        self.config.schedule.enabled = not self.config.schedule.enabled
+        return (
+            self.translator.translate("Scheduler enabled")
+            if self.config.schedule.enabled
+            else self.translator.translate("Scheduler disabled")
+        )
+
