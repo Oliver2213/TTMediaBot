@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from threading import Thread
-from typing import Any, List, TYPE_CHECKING, Tuple
+from typing import Any, List, TYPE_CHECKING, Tuple, Optional
 
 from bot import app_vars, errors
 from bot.TeamTalk.structs import Message, User, UserType
@@ -142,10 +142,10 @@ class CommandProcessor:
         else:
             return True
 
-    def get_command(self, command: str, user: User) -> Any:
+    def get_command(self, command: str, user: Optional[User]) -> Any:
         if command in self.commands_dict:
             return self.commands_dict[command]
-        elif (
+        elif (user is not None) and (
             user.is_admin or user.type == UserType.Admin
         ) and command in self.admin_commands_dict:
             return self.admin_commands_dict[command]
@@ -204,11 +204,11 @@ class ScheduledCommandProcessor(CommandProcessor):
                 self.current_command_id = id(command)
                 result = command(arg, None)
                 if result:
-                    log.info(f"Successfully ran cron command '{task.command}; result: {result}")
+                    logger.info(f"Successfully ran cron command '{task.command}; result: {result}")
                     self.ttclient.send_message(
                         result,
                         message.user,
-                    )  # here was command.ttclient later
+                    )  
         except errors.InvalidArgumentError:
             log.error(f"Invalid argument for scheduled command '{task.command}'; cron pattern: {task.pattern}")
             if self.config.general.send_channel_messages:
