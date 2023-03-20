@@ -15,6 +15,7 @@ re_arg_split = re.compile(r"(?<!\\)\|")
 
 if TYPE_CHECKING:
     from bot import Bot
+    from bot.config.models import CronEntryModel
 
 
 class CommandProcessor:
@@ -51,6 +52,7 @@ class CommandProcessor:
             "gl": user_commands.GetLinkCommand,
             "dl": user_commands.DownloadCommand,
             "r": user_commands.RecentsCommand,
+            "cr": admin_commands.SchedulerCommand,
         }
         self.admin_commands_dict = {
             "cg": admin_commands.ChangeGenderCommand,
@@ -62,6 +64,7 @@ class CommandProcessor:
             "jc": admin_commands.JoinChannelCommand,
             "bc": admin_commands.BlockCommandCommand,
             # "ts": TaskSchedulerCommand,
+            "cr": admin_commands.SchedulerCommand,
             "l": admin_commands.LockCommand,
             "ua": admin_commands.AdminUsersCommand,
             "ub": admin_commands.BannedUsersCommand,
@@ -180,3 +183,52 @@ class CommandProcessor:
         for i, arg in enumerate(args):
             args[i] = args[i].strip().replace("\\|", "|")
         return args
+
+
+class ScheduledCommandProcessor(CommandProcessor):
+    """Command processor, specifically tailored for scheduled tasks. Takes a CronEntry instead of a message."""
+    def __init__(self, bot: Bot):
+        super().__init__(bot)
+
+    def __call__(self, task: CronEntryModel) -> None:
+        command_thread = Thread(target=self._run, args=(task,))
+        command_thread.start()
+
+    def _run(self, task: CronEntryModel) -> None:
+        """Takes a cron task and runs it. Doesn't provide user to the command, doesn't check access (as there is no user to check). Logs errors and reports them to the channel also if that is enabled. Cron tasks can run admin commands."""
+        try:
+            command_name, arg = self.parse_command(task.command)
+            if command_name in self.commands_dict or command_name in self.admin_commands_dict:
+                command_class = self.get_command(command_name, None)
+                command = command_class(self)
+                self.current_command_id = id(command)
+                result = command(arg, None)
+                if result:
+                    log.info(f"Successfully ran cron command '{task.command}; result: {result}")
+                    self.ttclient.send_message(
+                        result,
+                        message.user,
+                    )  # here was command.ttclient later
+        except errors.InvalidArgumentError:
+            log.error(f"Invalid argument for scheduled command '{task.command}'; cron pattern: {task.pattern}")
+            if self.config.general.send_channel_messages:
+                self.ttclient.send_message(
+                    self.translator.translate(
+                        f"Scheduled command '{task.command}' failed: invalid argument"),
+                    type=2,
+                )
+        except errors.AccessDeniedError as e:
+            log.error(f"Got access denied while running scheduled task '{task.command}'; cron pattern: {task.pattern}")
+        except (errors.ParseCommandError, errors.UnknownCommandError):
+            if self.config.general.send_channel_messages:
+                self.ttclient.send_message(
+                    self.translator.translate(f"Unknown scheduled command: '{task.command}'."),
+                    type=2
+                )
+        except Exception as e:
+            logging.error(f"Error running scheduled command '{task.command}", exc_info=True)
+            if self.config.general.send_channel_messages:
+                self.ttclient.send_message(
+                self.translator.translate(f"Error running scheduled command '{task.command}: {e}"),
+                type=2,
+            )

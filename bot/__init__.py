@@ -3,10 +3,12 @@ import logging
 import queue
 import sys
 import time
-from typing import Optional, List, Tuple
-from crontab import CronTab
+from typing import Optional, List, Tuple, TYPE_CHECKING
+if TYPE_CHECKING:
+    from bot.config.models import CronEntryModel
 
 from pydantic.error_wrappers import ValidationError
+from crontab import CronTab
 
 from bot import (
     TeamTalk,
@@ -75,7 +77,8 @@ class Bot:
         self.service_manager = services.ServiceManager(self)
         self.module_manager = modules.ModuleManager(self)
         self.command_processor = commands.CommandProcessor(self)
-        self.cron_patterns: Tuple[CronTab, config.models.CronEntryModel] = []
+        self.scheduled_command_processor = commands.ScheduledCommandProcessor(self)
+        self.cron_patterns: List[Tuple[CronTab, CronEntryModel]] = []
 
     def initialize(self):
         if self.config.logger.log:
@@ -89,11 +92,12 @@ class Bot:
         if self.config.schedule.enabled:
             # parse all cron patterns into CronTab instances and store
             for entry in self.config.schedule.patterns:
-                logging.debug(f"Parsing cron pattern '{entry.pattern}' and appending to list")
+                logging.debug(
+                    f"Parsing cron pattern '{entry.pattern}' and appending to list"
+                )
                 e = CronTab(entry.pattern)
                 self.cron_patterns.append((e, entry))
         logging.debug("Initialized")
-        
 
     def run(self):
         logging.debug("Starting")
@@ -104,6 +108,7 @@ class Bot:
         self.tt_player_connector.start()
         self.periodic_tt_player_connector.start()
         self.command_processor.run()
+        self.scheduled_command_processor.run()
         logging.info("Started")
         self._close = False
         while not self._close:
@@ -112,7 +117,11 @@ class Bot:
                 for ct, entry in tasks:
                     if ct.next() <= 1:
                         # run the associated command here
-                        pass
+                        logging.debug(
+                            f"Running command '{entry.command}' for cron pattern '{entry.pattern}"
+                     )
+                        # call the scheduled command processor with the cron entry from config
+                        self.scheduled_command_processor(entry)
             try:
                 message = self.ttclient.message_queue.get_nowait()
                 logging.info(

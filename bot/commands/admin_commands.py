@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 import os
 import subprocess
 import sys
@@ -6,6 +7,7 @@ import time
 from typing import Optional, TYPE_CHECKING
 from queue import Empty
 
+from crontab import CronTab
 from bot.commands.command import Command
 from bot.player.enums import State
 from bot import app_vars, errors
@@ -391,6 +393,14 @@ class SchedulerCommand(Command):
 
     def __call__(self, arg: str, user: User) -> Optional[str]:
         self.config.schedule.enabled = not self.config.schedule.enabled
+        if self.config.schedule.enabled:
+            self._bot.cron_patterns = []
+            for entry in self.config.schedule.patterns:
+                logging.debug(
+                    f"Parsing cron pattern '{entry.pattern}' and appending to list"
+                )
+                e = CronTab(entry.pattern)
+                self._bot.cron_patterns.append((e, entry))
         return (
             self.translator.translate("Scheduler enabled")
             if self.config.schedule.enabled
