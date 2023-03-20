@@ -74,11 +74,11 @@ class PlayUrlCommand(Command):
     def help(self) -> str:
         return self.translator.translate("URL Plays a stream from a given URL")
 
-    def __call__(self, arg: str, user: User) -> Optional[str]:
+    def __call__(self, arg: str, user: Optional[User]) -> Optional[str]:
         if arg:
             try:
-                tracks = self.module_manager.streamer.get(arg, user.is_admin)
-                if self.config.general.send_channel_messages:
+                tracks = self.module_manager.streamer.get(arg, user.is_admin if user is not None else True)
+                if user is not None and self.config.general.send_channel_messages:
                     self.run_async(
                         self.ttclient.send_message,
                         self.translator.translate(
