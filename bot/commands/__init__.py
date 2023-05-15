@@ -28,6 +28,7 @@ class CommandProcessor:
         self.cache_manager = bot.cache_manager
         self.module_manager = bot.module_manager
         self.player = bot.player
+        self.periodic_player = bot.periodic_player
         self.service_manager = bot.service_manager
         self.ttclient = bot.ttclient
         self.translator = bot.translator
@@ -145,9 +146,11 @@ class CommandProcessor:
     def get_command(self, command: str, user: Optional[User]) -> Any:
         if command in self.commands_dict:
             return self.commands_dict[command]
-        elif (user is not None) and (
-            user.is_admin or user.type == UserType.Admin
-        ) and command in self.admin_commands_dict:
+        elif (
+            (user is not None)
+            and (user.is_admin or user.type == UserType.Admin)
+            and command in self.admin_commands_dict
+        ):
             return self.admin_commands_dict[command]
         else:
             raise errors.UnknownCommandError()
@@ -187,6 +190,7 @@ class CommandProcessor:
 
 class ScheduledCommandProcessor(CommandProcessor):
     """Command processor, specifically tailored for scheduled tasks. Takes a CronEntry instead of a message."""
+
     def __init__(self, bot: Bot):
         super().__init__(bot)
 
@@ -198,37 +202,53 @@ class ScheduledCommandProcessor(CommandProcessor):
         """Takes a cron task and runs it. Doesn't provide user to the command, doesn't check access (as there is no user to check). Logs errors and reports them to the channel also if that is enabled. Cron tasks can run admin commands."""
         try:
             command_name, arg = self.parse_command(task.command)
-            if command_name in self.commands_dict or command_name in self.admin_commands_dict:
+            if (
+                command_name in self.commands_dict
+                or command_name in self.admin_commands_dict
+            ):
                 command_class = self.get_command(command_name, None)
                 command = command_class(self)
                 self.current_command_id = id(command)
                 result = command(arg, None)
                 if result:
-                    logger.info(f"Successfully ran cron command '{task.command}; result: {result}")
+                    logger.info(
+                        f"Successfully ran cron command '{task.command}; result: {result}"
+                    )
                     self.ttclient.send_message(
                         result,
                         message.user,
-                    )  
+                    )
         except errors.InvalidArgumentError:
-            log.error(f"Invalid argument for scheduled command '{task.command}'; cron pattern: {task.pattern}")
+            log.error(
+                f"Invalid argument for scheduled command '{task.command}'; cron pattern: {task.pattern}"
+            )
             if self.config.general.send_channel_messages:
                 self.ttclient.send_message(
                     self.translator.translate(
-                        f"Scheduled command '{task.command}' failed: invalid argument"),
+                        f"Scheduled command '{task.command}' failed: invalid argument"
+                    ),
                     type=2,
                 )
         except errors.AccessDeniedError as e:
-            log.error(f"Got access denied while running scheduled task '{task.command}'; cron pattern: {task.pattern}")
+            log.error(
+                f"Got access denied while running scheduled task '{task.command}'; cron pattern: {task.pattern}"
+            )
         except (errors.ParseCommandError, errors.UnknownCommandError):
             if self.config.general.send_channel_messages:
                 self.ttclient.send_message(
-                    self.translator.translate(f"Unknown scheduled command: '{task.command}'."),
-                    type=2
+                    self.translator.translate(
+                        f"Unknown scheduled command: '{task.command}'."
+                    ),
+                    type=2,
                 )
         except Exception as e:
-            logging.error(f"Error running scheduled command '{task.command}", exc_info=True)
+            logging.error(
+                f"Error running scheduled command '{task.command}", exc_info=True
+            )
             if self.config.general.send_channel_messages:
                 self.ttclient.send_message(
-                self.translator.translate(f"Error running scheduled command '{task.command}: {e}"),
-                type=2,
-            )
+                    self.translator.translate(
+                        f"Error running scheduled command '{task.command}: {e}"
+                    ),
+                    type=2,
+                )

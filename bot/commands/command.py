@@ -18,6 +18,7 @@ class Command:
         self.config_manager = command_processor.config_manager
         self.module_manager = command_processor.module_manager
         self.player = command_processor.player
+        self.periodic_player = command_processor.periodic_player
         self.service_manager = command_processor.service_manager
         self._task_processor = command_processor.task_processor
         self.ttclient = command_processor.ttclient
