@@ -6,6 +6,7 @@ import sys
 import time
 from typing import Optional, TYPE_CHECKING
 from queue import Empty
+import humanize
 
 from crontab import CronTab
 from bot.commands.command import Command
@@ -406,13 +407,28 @@ class SchedulerCommand(Command):
             return self.remove(arg[3:])
         elif arg.strip() == "list" or arg.strip() == "ls":
             return self.list_tasks()
-        else:
+        elif arg.strip() in ["help", "?", "h"]:
             return """Unknown cr subcommand. Options:
             toggle (shorten to t) - turn the scheduler on or off.
             add - add a cron task.
             Format is cron expression|command with arguments.
             Remove - remove a task.
             list or ls - list all scheduled tasks."""
+        else:
+            s: str = (
+                self.translator.translate(
+                    "Scheduled tasks are enabled (disable with 'cr toggle')"
+                )
+                if self.config.schedule.enabled
+                else self.translator.translate(
+                    "Scheduled tasks are disabled; enable with 'cr toggle'"
+                )
+            )
+            s += "\n" + self.list_tasks()
+            s += self.translator.translate(
+                "Commands: \ncr add cron expression|command\ncr rm #\ncr ls\ncr toggle"
+            )
+            return s
 
     def toggle(self):
         self.config.schedule.enabled = not self.config.schedule.enabled
@@ -482,6 +498,17 @@ class SchedulerCommand(Command):
             lines.append("Task #{}".format(idx + 1))
             lines.append("  Cron pattern: {}".format(task.pattern))
             lines.append("  command: {}".format(task.command))
+            c = CronTab(task.pattern)
+            lines.append(
+                "Pattern ran: {} ago;".format(
+                    humanize.precisedelta(c.previous(default_utc=False))
+                )
+            )
+            lines.append(
+                "Next run in {}.".format(
+                    humanize.precisedelta(c.next(default_utc=False))
+                )
+            )
         s: str = ""
         for l in lines:
             s += l + "\n"
