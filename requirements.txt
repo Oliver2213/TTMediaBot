@@ -10,4 +10,4 @@ yandex_music
 youtube-search-python
 yt-dlp
 crontab
-humanize = 4.6
+humanize == 4.6
