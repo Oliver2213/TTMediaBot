@@ -9,6 +9,7 @@ from queue import Empty
 
 from crontab import CronTab
 from bot.commands.command import Command
+from bot.config.models import CronEntryModel
 from bot.player.enums import State
 from bot import app_vars, errors
 
@@ -386,24 +387,104 @@ class GetChannelIDCommand(Command):
     def __call__(self, arg: str, user: User) -> Optional[str]:
         return str(self.ttclient.channel.id)
 
+
 class SchedulerCommand(Command):
     @property
     def help(self) -> str:
-        return self.translator.translate("Enables or disabled the cron scheduler.")
+        return self.translator.translate(
+            "Controls the cron scheduler, allowing admins to toggle it and add / remove scheduled commands"
+        )
 
     def __call__(self, arg: str, user: User) -> Optional[str]:
+        if arg == "toggle" or arg == "t":
+            return self.toggle()
+        elif arg.startswith("add "):
+            # pass in the string after our command:
+            add_argstr = arg[4:]
+            return self.add(add_argstr)
+        elif arg.startswith("rm "):
+            return self.remove(arg[3:])
+        elif arg.strip() == "list" or arg.strip() == "ls":
+            return self.list_tasks()
+        else:
+            return """Unknown cr subcommand. Options:
+            toggle (shorten to t) - turn the scheduler on or off.
+            add - add a cron task.
+            Format is cron expression|command with arguments.
+            Remove - remove a task.
+            list or ls - list all scheduled tasks."""
+
+    def toggle(self):
         self.config.schedule.enabled = not self.config.schedule.enabled
         if self.config.schedule.enabled:
-            self._bot.cron_patterns = []
-            for entry in self.config.schedule.patterns:
-                logging.debug(
-                    f"Parsing cron pattern '{entry.pattern}' and appending to list"
-                )
-                e = CronTab(entry.pattern)
-                self._bot.cron_patterns.append((e, entry))
+            self.reparse_patterns()
         return (
-            self.translator.translate("Scheduler enabled")
+            self.translator.translate("Scheduler enabled.")
             if self.config.schedule.enabled
             else self.translator.translate("Scheduler disabled")
         )
 
+    def reparse_patterns(self):
+        self._bot.cron_patterns = []
+        for entry in self.config.schedule.patterns:
+            logging.debug(
+                f"Parsing cron pattern '{entry.pattern}' and appending to list"
+            )
+            e = CronTab(entry.pattern)
+            self._bot.cron_patterns.append((e, entry))
+
+    def add(self, argstr: str) -> str:
+        # Our arg should be a cron expression, | and the command.
+        help_text = self.translator.translate(
+            "Incorrect format. Cron expression | command you want to run with arguments after"
+        )
+        if "|" not in argstr:
+            return help_text
+        args = argstr.split("|")
+        if len(args) != 2:
+            return help_text
+        cronexpr = args[0].strip()
+        cmd = args[1].strip()
+        try:
+            ct: CronTab = CronTab(cronexpr)
+            entry = CronEntryModel(pattern=cronexpr, command=cmd)
+            self.config.schedule.patterns.append(entry)
+            self.reparse_patterns()
+            return self.translator.translate("Task scheduled.")
+        except ValueError:
+            return self.translator.translate(
+                "Not a valid cron expression. Pleaes use cr expression-help for more details."
+            )
+
+    def remove(self, arg: str) -> str:
+        if arg == "":
+            return self.list_tasks()
+        try:
+            task_index = int(arg)
+            task_index -= 1
+            if task_index > len(self.config.schedule.patterns) or task_index < 0:
+                return self.translator.translate(
+                    "Task number out of range - should be 1 to {}".format(len(l))
+                )
+            task = self.config.schedule.patterns.pop(task_index)
+            self.reparse_patterns()
+            return self.translator.translate(
+                f"Removed task #{task_index+1}, {task.pattern}: {task.command}"
+            )
+        except ValueError:
+            return self.translator.translate("Invalid task number")
+
+    def list_tasks(self) -> str:
+        if len(self.config.schedule.patterns) == 0:
+            return self.translator.translate("There are no scheduled tasks")
+        lines: list[str] = []
+        for idx, task in enumerate(self.config.schedule.patterns):
+            lines.append("Task #{}".format(idx + 1))
+            lines.append("  Cron pattern: {}".format(task.pattern))
+            lines.append("  command: {}".format(task.command))
+        s: str = ""
+        for l in lines:
+            s += l + "\n"
+
+        return s
+        return lines
